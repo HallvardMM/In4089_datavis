@@ -1,0 +1,10 @@
+.vs/
+cmake/
+integrity_tests/
+out/
+resources/
+shaders/
+.clang-format
+CMakeLists.txt
+CMakeSettings.json
+vcpkg.json
