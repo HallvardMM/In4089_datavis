@@ -19,6 +19,10 @@ struct RenderConfig {
     glm::ivec2 renderResolution;
 
     bool volumeShading { false };
+    float k_a { 0.2f };
+    float k_d { 0.5f};
+    float k_s { 0.3f };
+    float phongAlpha { 5.0f };
     float isoValue { 95.0f };
     float alphaTriValue { -1.0f };
 

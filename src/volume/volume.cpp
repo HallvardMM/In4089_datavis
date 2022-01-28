@@ -10,6 +10,7 @@
 #include <gsl/span>
 #include <iostream>
 #include <string>
+#include <future> // std::promise, std::future
 
 struct Header {
     glm::ivec3 dim;
@@ -225,11 +226,10 @@ float Volume::cubicInterpolate(float g0, float g1, float g2, float g3, float fac
     // If: factor = dist(g1, X)/dist(g1, g2) we have factor = dist(g1, X),
     // since dist(g1, g2) is 1.
     // g0----g1-X---g2----g3
-    return g0 * weight(1 + factor, alphaValue) 
-        + g1 * weight(factor, alphaValue) 
+    return g0 * weight(1 + factor, alphaValue) //Could also be -1 - factor, same since abs() used in weight()
+        + g1 * weight(factor, alphaValue) //Could also be -factor, same since abs() used in weight()
         + g2 * weight(1 - factor, alphaValue) 
-        + g3 * weight(2 - factor, alphaValue);
-
+        + g3 * weight(2 - factor, alphaValue); 
 }
 
 // ======= OPTIONAL : This functions can be used to implement cubic interpolation ========
@@ -308,7 +308,52 @@ float Volume::biCubicInterpolate(const glm::vec2& xyCoord, int z, float alphaVal
 
 // ======= OPTIONAL : This functions can be used to implement cubic interpolation ========
 // This function computes the tricubic interpolation at coord
-float Volume::getSampleTriCubicInterpolation(const glm::vec3& coord, float alphaValue) const
+/* float Volume::getSampleTriCubicInterpolation(const glm::vec3& coord, float alphaValue) const
+{
+    // check if the coordinate is within volume boundaries. Need to check 1.5 since we have two neighbours
+    if (glm::any(glm::lessThan(coord - 1.5f, glm::vec3(0))) || glm::any(glm::greaterThan(coord + 1.5f, glm::vec3(m_dim - 1)))) {
+        // If we check at the outskirts of the dimension with no neighbour  we can still linear interpolat and
+        // if outside dimensions linear interpolate will return 0.0f
+        return getSampleTriLinearInterpolation(coord);
+    }
+
+
+    // Find the z coordinates that surround the point we want to interpolate to
+
+    std::array<int, 4> zcoordinates = {
+        glm::max(0, static_cast<int>(floor(coord.z)) - 1),
+        static_cast<int>(floor(coord.z)),
+        static_cast<int>(ceil(coord.z)),
+        glm::min(m_dim.z, static_cast<int>(ceil(coord.z)) + 1)
+    };
+
+    glm::vec2 xyVector = glm::vec2(coord.x, coord.y);
+
+    // perform biCubic interpolation for z-values in front and back of the point
+
+    std::array<std::future<float>, 4> valueArray;
+
+    for (int i = 0; i < zcoordinates.size(); i++) {
+        valueArray[i] = std::async(std::launch::async, [this, xyVector, zcoordinates, i, alphaValue]() { return biCubicInterpolate(xyVector, zcoordinates[i], alphaValue); });
+    }
+
+    std::array<float, 4> taskedValues;
+
+    for (int i = 0; i < 4; i++)
+    {
+        taskedValues[i] = valueArray[i].get();
+    }
+
+    // Calculate how far along the distance between the surrounding points the value is, in both the x and y direction
+    // This will return only the values after the decimal point: 2.5 --> 0.5
+    float zFactor = (coord.z - floor(coord.z));
+
+    // cubic interpolate the values found in the z direction
+    // retrun 0.0f if the value is negative as an error check
+    return glm::max(cubicInterpolate(taskedValues[0], taskedValues[1], taskedValues[2], taskedValues[3], zFactor, alphaValue), 0.0f);
+}*/
+
+ float Volume::getSampleTriCubicInterpolation(const glm::vec3& coord, float alphaValue) const
 {
     // check if the coordinate is within volume boundaries. Need to check 1.5 since we have two neighbours
     if (glm::any(glm::lessThan(coord - 1.5f, glm::vec3(0))) || glm::any(glm::greaterThan(coord + 1.5f, glm::vec3(m_dim-1)))) {
@@ -327,6 +372,8 @@ float Volume::getSampleTriCubicInterpolation(const glm::vec3& coord, float alpha
     glm::vec2 xyVector = glm::vec2(coord.x, coord.y);
 
     // perform biCubic interpolation for z-values in front and back of the point
+
+
     float C0 = biCubicInterpolate(xyVector, ZLowBelow, alphaValue);
     float C1 = biCubicInterpolate(xyVector, Zbelow, alphaValue);
     float C2 = biCubicInterpolate(xyVector, Zabove, alphaValue);
@@ -340,6 +387,7 @@ float Volume::getSampleTriCubicInterpolation(const glm::vec3& coord, float alpha
     // retrun 0.0f if the value is negative as an error check
     return glm::max(cubicInterpolate(C0, C1, C2, C3, zFactor, alphaValue), 0.0f);
 }   
+
 
 // Load an fld volume data file
 // First read and parse the header, then the volume data can be directly converted from bytes to uint16_ts

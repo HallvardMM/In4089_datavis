@@ -139,6 +139,22 @@ void Menu::showRayCastTab(std::chrono::duration<double> renderTime)
 
         ImGui::NewLine();
 
+        // Adds the possibility to change the paramerts in the PhongShading
+        if (m_renderConfig.volumeShading) {
+            ImGui::DragFloat("Phong Ambient Weight", &m_renderConfig.k_a, 0.01f, 0.0f, 1.0f);
+        }
+        if (m_renderConfig.volumeShading) {
+            ImGui::DragFloat("Phong Diffuse Weight", &m_renderConfig.k_d, 0.01f, 0.0f, 1.0f);
+        }
+        if (m_renderConfig.volumeShading) {
+            ImGui::DragFloat("Phong Sepcular Weight", &m_renderConfig.k_s, 0.01f, 0.0f, 1.0f);
+        }
+        if (m_renderConfig.volumeShading) {
+            ImGui::DragFloat("Specular Reflection Term", &m_renderConfig.phongAlpha, 1.0f, 1.0f, 100.0f);
+        }
+
+        ImGui::NewLine();
+
         ImGui::DragFloat("Iso Value", &m_renderConfig.isoValue, 0.1f, 0.0f, float(m_volumeMax));
 
         ImGui::NewLine();
@@ -158,7 +174,8 @@ void Menu::showRayCastTab(std::chrono::duration<double> renderTime)
 
         ImGui::NewLine();
 
-        if (*pInterpolationModeInt== 2) { //-1.0f, -0.5f
+        //Adds the possibility to change the a-value in the tricubic weight kernel
+        if (*pInterpolationModeInt== 2) {
             ImGui::DragFloat("Alpha kernel value", &m_renderConfig.alphaTriValue, 0.01f, -3.5f, 0.0f);
         }
 

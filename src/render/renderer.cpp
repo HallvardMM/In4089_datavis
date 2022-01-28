@@ -193,7 +193,7 @@ glm::vec4 Renderer::traceRayISO(const Ray& ray, float sampleStep) const
         if (val > isoVal && !foundISO) {
             float accurateT = bisectionAccuracy(ray, (t - sampleStep), t, isoVal);
             glm::vec3 accuratePos = ray.origin + accurateT * ray.direction;
-            color = computePhongShading(isoColor, m_pGradientVolume->getGradientInterpolate(accuratePos), m_pCamera->position(), ray.direction);
+            color = computePhongShading(isoColor, m_pGradientVolume->getGradientInterpolate(accuratePos), m_pCamera->position(), ray.direction, m_config.k_a, m_config.k_d, m_config.k_s, m_config.phongAlpha);
             foundISO = true;
             break; // Break to improve performance and not iterate through all values
         }
@@ -257,14 +257,8 @@ float Renderer::bisectionAccuracy(const Ray& ray, float t0, float t1, float isoV
 //
 // Use the given color for the ambient/specular/diffuse (you are allowed to scale these constants by a scalar value).
 // You are free to choose any specular power that you'd like.
-glm::vec3 Renderer::computePhongShading(const glm::vec3& color, const volume::GradientVoxel& gradient, const glm::vec3& L, const glm::vec3& V)
+glm::vec3 Renderer::computePhongShading(const glm::vec3& color, const volume::GradientVoxel& gradient, const glm::vec3& L, const glm::vec3& V, float k_a, float k_d,float k_s,float phongAlpha)
 {
-    // Set k and alpha variables manually
-    float k_a = 0.2f;
-    float k_d = 0.5f;
-    float k_s = 0.3f;
-    int alpha = 5.0f;
-
     // Calculate the inverse of the light direction
     glm::vec3 Linv = glm::vec3(L.x * -1.0f, L.y * -1.0f, L.z * -1.0f);
 
@@ -279,9 +273,11 @@ glm::vec3 Renderer::computePhongShading(const glm::vec3& color, const volume::Gr
     float cos_phi = glm::dot(glm::normalize(reflectL), glm::normalize(V));
 
     // Calculate the three types of light separately, then add together to return
+    // k_a, k_d, k_s are the phong weights exposed in the UI. 
+    // PhongAlpha is the specular reflection term.
     glm::vec3 ambient = k_a * color;
     glm::vec3 diffuse = k_d * cos_theta * color;
-    glm::vec3 specular = glm::vec3(k_s * color.x * pow(cos_phi, alpha), k_s * color.y * pow(cos_phi, alpha), k_s * color.z * pow(cos_phi, alpha));
+    glm::vec3 specular = glm::vec3(k_s * color.x * pow(cos_phi, phongAlpha), k_s * color.y * pow(cos_phi, phongAlpha), k_s * color.z * pow(cos_phi, phongAlpha));
 
     return ambient + diffuse + specular;
 }
@@ -309,8 +305,9 @@ glm::vec4 Renderer::traceRayComposite(const Ray& ray, float sampleStep) const
         TFval = glm::vec4(TFval.x * TFval.w, TFval.y * TFval.w, TFval.z * TFval.w, TFval.w);
         glm::vec3 TFcolor = glm::vec3(TFval.x, TFval.y, TFval.z);
         if (TFval.w > 0) {
-            glm::vec3 TFcolor = computePhongShading(TFcolor, m_pGradientVolume->getGradientInterpolate(samplePos), m_pCamera->position(), ray.direction);
-            glm::vec4 TFval = glm::vec4(TFcolor.x, TFcolor.y, TFcolor.z, TFval.w);
+            glm::vec3 TFcolor = computePhongShading(TFcolor, m_pGradientVolume->getGradientInterpolate(samplePos), m_pCamera->position(), ray.direction, m_config.k_a, m_config.k_d, m_config.k_s, m_config.phongAlpha);
+            float w = TFval.w;
+            glm::vec4 TFval = glm::vec4(TFcolor.x, TFcolor.y, TFcolor.z, w);
         }
 
         // The last C_i and A_i now become C_i-1 and A_i-1, and we calculate the next step in the ray traversal.
